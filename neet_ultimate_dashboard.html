@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>NEET Ultimate Dashboard 💅</title>
+<style>
+body{
+ font-family:'Segoe UI',sans-serif;
+ margin:0;
+ background:linear-gradient(to bottom,#fce4ec,#e3f2fd);
+}
+.header{
+ background:#ff4da6;
+ color:white;
+ padding:15px;
+ font-size:22px;
+ text-align:center;
+}
+.container{padding:10px;}
+.card{
+ background:white;
+ border-radius:16px;
+ padding:15px;
+ margin:10px 0;
+ box-shadow:0 4px 10px rgba(0,0,0,0.1);
+}
+.progress{background:#eee;border-radius:10px;}
+.bar{height:15px;background:#ff4da6;width:0;border-radius:10px;}
+button{
+ background:#ff4da6;
+ color:white;
+ border:none;
+ padding:8px 12px;
+ border-radius:10px;
+ margin:5px;
+ cursor:pointer;
+}
+.day{
+ display:inline-block;
+ padding:6px;
+ margin:3px;
+ border-radius:8px;
+ background:#eee;
+ cursor:pointer;
+ font-size:12px;
+}
+.done{background:#ff99cc;}
+</style>
+</head>
+
+<body>
+
+<div class="header">NEET Ultimate 💅✨</div>
+
+<div class="container">
+
+<div class="card"><h3 id="countdown"></h3></div>
+
+<div class="card">
+<h3>Daily Tasks</h3>
+<label><input type="checkbox" class="task" value="physics"> Physics</label><br>
+<label><input type="checkbox" class="task" value="chemistry"> Chemistry</label><br>
+<label><input type="checkbox" class="task" value="biology"> Biology</label>
+</div>
+
+<div class="card">
+<h3>Progress</h3>
+<div class="progress"><div id="bar" class="bar"></div></div>
+<p id="percent"></p>
+</div>
+
+<div class="card">
+<h3>🔥 Streak</h3>
+<p id="streak"></p>
+</div>
+
+<div class="card">
+<h3>⏱ Pomodoro</h3>
+<p id="timer">25:00</p>
+<button onclick="startTimer()">Start</button>
+</div>
+
+<div class="card">
+<h3>📊 Analytics</h3>
+<p id="analytics"></p>
+</div>
+
+<div class="card">
+<h3>🧪 Mock Tests</h3>
+<input id="score" type="number" placeholder="Score">
+<button onclick="addScore()">Add</button>
+<ul id="scores"></ul>
+<canvas id="chart" width="300" height="150"></canvas>
+</div>
+
+<div class="card">
+<h3>📌 Weak Areas</h3>
+<input id="weak">
+<button onclick="addWeak()">Add</button>
+<ul id="weakList"></ul>
+</div>
+
+<div class="card">
+<h3>😵 Mood</h3>
+<button onclick="setMood('😊')">😊</button>
+<button onclick="setMood('😐')">😐</button>
+<button onclick="setMood('😩')">😩</button>
+<p id="moodText"></p>
+</div>
+
+<div class="card">
+<h3>📅 Countdown History</h3>
+<div id="history"></div>
+<p id="details"></p>
+</div>
+
+</div>
+
+<script>
+
+let exam=new Date("June 21, 2026");
+function key(d){return d.toISOString().slice(0,10);}
+
+// countdown
+function cd(){
+ let d=new Date();
+ let days=Math.ceil((exam-d)/(1000*60*60*24));
+ document.getElementById("countdown").innerText=days+" days to NEET 💅";
+}
+cd();
+
+// storage
+let data=JSON.parse(localStorage.getItem("ultimate"))||{};
+let todayKey=key(new Date());
+if(!data[todayKey]) data[todayKey]={};
+
+// load tasks
+document.querySelectorAll(".task").forEach(cb=>{
+ if(data[todayKey][cb.value]) cb.checked=true;
+ cb.onchange=()=>{
+  data[todayKey][cb.value]=cb.checked;
+  localStorage.setItem("ultimate",JSON.stringify(data));
+  update();
+ };
+});
+
+// update
+function update(){
+ let done=Object.values(data[todayKey]).filter(v=>v).length;
+ let percent=(done/3)*100;
+ document.getElementById("bar").style.width=percent+"%";
+ document.getElementById("percent").innerText=Math.round(percent)+"% done";
+
+ // analytics
+ let total=Object.keys(data).length;
+ let perfect=Object.values(data).filter(d=>Object.values(d).filter(v=>v).length===3).length;
+ document.getElementById("analytics").innerText="Days tracked: "+total+" | Perfect days: "+perfect;
+
+ updateStreak();
+ renderHistory();
+}
+update();
+
+// streak
+function updateStreak(){
+ let streak=0;
+ let d=new Date();
+ while(true){
+  let k=key(d);
+  if(data[k] && Object.values(data[k]).filter(v=>v).length===3){
+   streak++; d.setDate(d.getDate()-1);
+  } else break;
+ }
+ document.getElementById("streak").innerText=streak+" days";
+}
+
+// pomodoro
+let t=1500;
+function startTimer(){
+ let i=setInterval(()=>{
+  t--;
+  let m=Math.floor(t/60),s=t%60;
+  document.getElementById("timer").innerText=m+":"+(s<10?"0":"")+s;
+  if(t<=0) clearInterval(i);
+ },1000);
+}
+
+// mock
+let scores=JSON.parse(localStorage.getItem("ultimateScores"))||[];
+function addScore(){
+ let val=parseInt(document.getElementById("score").value);
+ scores.push(val);
+ localStorage.setItem("ultimateScores",JSON.stringify(scores));
+ renderScores();
+ draw();
+}
+function renderScores(){
+ let ul=document.getElementById("scores");
+ ul.innerHTML="";
+ scores.forEach(s=>{
+  let li=document.createElement("li");
+  li.innerText="Score: "+s;
+  ul.appendChild(li);
+ });
+}
+renderScores();
+
+function draw(){
+ let c=document.getElementById("chart");
+ let ctx=c.getContext("2d");
+ ctx.clearRect(0,0,300,150);
+ ctx.beginPath();
+ scores.forEach((s,i)=>{
+  let x=i*40+10;
+  let y=150-s/5;
+  if(i===0) ctx.moveTo(x,y);
+  else ctx.lineTo(x,y);
+ });
+ ctx.stroke();
+}
+draw();
+
+// weak
+function addWeak(){
+ let val=document.getElementById("weak").value;
+ let li=document.createElement("li");
+ li.innerText=val;
+ document.getElementById("weakList").appendChild(li);
+}
+
+// mood
+function setMood(m){
+ let msg={
+ "😊":"You're doing amazing 💖",
+ "😐":"Stay consistent 👑",
+ "😩":"Take a break, bounce back 💪"
+ };
+ document.getElementById("moodText").innerText=msg[m];
+}
+
+// history
+function renderHistory(){
+ let container=document.getElementById("history");
+ container.innerHTML="";
+ let today=new Date();
+ let total=Math.ceil((exam-today)/(1000*60*60*24));
+
+ for(let i=total;i>=0;i--){
+  let d=new Date();
+  d.setDate(today.getDate()+(i-total));
+  let k=key(d);
+
+  let div=document.createElement("div");
+  div.className="day";
+
+  if(data[k] && Object.values(data[k]).filter(v=>v).length===3){
+    div.classList.add("done");
+  }
+
+  div.innerText=i===0?"NEET":"D"+i;
+
+  div.onclick=()=>{
+   let dayData=data[k];
+   if(!dayData){
+    document.getElementById("details").innerText="No data";
+   } else {
+    document.getElementById("details").innerText=
+    "Physics:"+(dayData.physics?"✔":"✘")+
+    " | Chem:"+(dayData.chemistry?"✔":"✘")+
+    " | Bio:"+(dayData.biology?"✔":"✘");
+   }
+  };
+
+  container.appendChild(div);
+ }
+}
+renderHistory();
+
+</script>
+
+</body>
+</html>
